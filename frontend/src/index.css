@@ -4,11 +4,28 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===================== CSS VARIABLES ===================== */
 :root {
   --cyber-bg: #0a0a0f;
   --cyber-card: #0f0f1a;
   --cyber-purple: #7c3aed;
   --cyber-cyan: #06b6d4;
+  --cyber-text: #e2e8f0;
+  --cyber-text-muted: #64748b;
+  --cyber-border: rgba(124, 58, 237, 0.3);
+  --cyber-input-bg: rgba(255,255,255,0.03);
+}
+
+/* Light mode overrides */
+.light-mode {
+  --cyber-bg: #f0f4ff;
+  --cyber-card: #ffffff;
+  --cyber-purple: #6d28d9;
+  --cyber-cyan: #0891b2;
+  --cyber-text: #1e293b;
+  --cyber-text-muted: #64748b;
+  --cyber-border: rgba(109, 40, 217, 0.25);
+  --cyber-input-bg: rgba(0,0,0,0.03);
 }
 
 * {
@@ -17,10 +34,11 @@
 
 body {
   background-color: var(--cyber-bg);
-  color: #e2e8f0;
+  color: var(--cyber-text);
   font-family: 'JetBrains Mono', monospace;
   min-height: 100vh;
   overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 body::before {
@@ -30,20 +48,22 @@ body::before {
   left: 0;
   width: 100%;
   height: 100%;
-  background: 
+  background:
     radial-gradient(ellipse at 20% 50%, rgba(124, 58, 237, 0.05) 0%, transparent 50%),
     radial-gradient(ellipse at 80% 20%, rgba(6, 182, 212, 0.05) 0%, transparent 50%);
   pointer-events: none;
   z-index: 0;
 }
 
+/* ===================== CYBER CARD ===================== */
 .cyber-card {
   background: var(--cyber-card);
-  border: 1px solid rgba(124, 58, 237, 0.3);
+  border: 1px solid var(--cyber-border);
   border-radius: 12px;
   backdrop-filter: blur(10px);
   position: relative;
   overflow: hidden;
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 .cyber-card::before {
@@ -56,6 +76,7 @@ body::before {
   background: linear-gradient(90deg, transparent, #7c3aed, #06b6d4, transparent);
 }
 
+/* ===================== CYBER BUTTON ===================== */
 .cyber-btn {
   background: linear-gradient(135deg, #7c3aed, #06b6d4);
   border: none;
@@ -80,11 +101,30 @@ body::before {
   transform: none;
 }
 
-.cyber-input {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(124, 58, 237, 0.4);
+.cyber-btn-secondary {
+  background: transparent;
+  border: 1px solid var(--cyber-border);
   border-radius: 8px;
-  color: #e2e8f0;
+  color: var(--cyber-text-muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.75rem;
+  padding: 0.4rem 0.75rem;
+}
+
+.cyber-btn-secondary:hover {
+  border-color: var(--cyber-purple);
+  color: var(--cyber-text);
+}
+
+/* ===================== CYBER INPUT ===================== */
+.cyber-input {
+  background: var(--cyber-input-bg);
+  border: 1px solid var(--cyber-border);
+  border-radius: 8px;
+  color: var(--cyber-text);
   font-family: 'JetBrains Mono', monospace;
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
   resize: none;
@@ -96,6 +136,11 @@ body::before {
   box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
 }
 
+.cyber-input::placeholder {
+  color: var(--cyber-text-muted);
+}
+
+/* ===================== VERDICTS ===================== */
 .verdict-ai {
   border-color: rgba(239, 68, 68, 0.6) !important;
   box-shadow: 0 0 30px rgba(239, 68, 68, 0.15);
@@ -106,6 +151,7 @@ body::before {
   box-shadow: 0 0 30px rgba(16, 185, 129, 0.15);
 }
 
+/* ===================== GLITCH ===================== */
 .glitch {
   position: relative;
 }
@@ -143,6 +189,7 @@ body::before {
   40% { transform: translate(-2px, 1px); }
 }
 
+/* ===================== SCANLINE ===================== */
 .scanline {
   position: fixed;
   top: 0;
@@ -160,15 +207,12 @@ body::before {
   100% { top: 100vh; }
 }
 
+/* ===================== PROGRESS BAR ===================== */
 .progress-bar-fill {
   transition: width 1s ease-in-out;
 }
 
-.tab-active {
-  border-bottom: 2px solid #7c3aed;
-  color: #7c3aed;
-}
-
+/* ===================== DROP ZONE ===================== */
 .drop-zone {
   border: 2px dashed rgba(124, 58, 237, 0.4);
   border-radius: 12px;
@@ -178,4 +222,156 @@ body::before {
 .drop-zone:hover, .drop-zone.drag-over {
   border-color: #7c3aed;
   background: rgba(124, 58, 237, 0.05);
+}
+
+/* ===================== HISTORY PANEL ===================== */
+.history-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: 360px;
+  background: var(--cyber-card);
+  border-left: 1px solid var(--cyber-border);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: -8px 0 32px rgba(0,0,0,0.5);
+}
+
+.history-panel.open {
+  transform: translateX(0);
+}
+
+.history-panel-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.history-panel-overlay.open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.history-item {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--cyber-border);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.history-item:hover {
+  background: rgba(124, 58, 237, 0.07);
+}
+
+/* ===================== BADGE PULSE ===================== */
+@keyframes badge-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.04); }
+}
+
+.badge-pulse {
+  animation: badge-pulse 2s ease-in-out infinite;
+}
+
+/* ===================== TOAST ===================== */
+.toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(0);
+  background: #1e1b4b;
+  border: 1px solid #7c3aed;
+  border-radius: 8px;
+  padding: 0.6rem 1.2rem;
+  color: #c4b5fd;
+  font-size: 0.75rem;
+  font-family: 'JetBrains Mono', monospace;
+  z-index: 10000;
+  animation: toast-in 0.3s ease;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ===================== STEP LOADER ===================== */
+.step-loader {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.step-loader-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cyber-purple);
+  animation: step-dot 1.2s ease-in-out infinite;
+}
+
+.step-loader-dot:nth-child(2) { animation-delay: 0.2s; }
+.step-loader-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes step-dot {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+/* ===================== LIGHT MODE OVERRIDES ===================== */
+.light-mode .cyber-card::before {
+  opacity: 0.6;
+}
+
+.light-mode .glitch::before {
+  color: #0891b2;
+}
+
+.light-mode .glitch::after {
+  color: #6d28d9;
+}
+
+/* ===================== RESPONSIVE MOBILE ===================== */
+@media (max-width: 640px) {
+  .history-panel {
+    width: 100vw;
+    border-left: none;
+    border-top: 1px solid var(--cyber-border);
+    top: auto;
+    bottom: 0;
+    height: 80vh;
+    transform: translateY(100%);
+  }
+
+  .history-panel.open {
+    transform: translateY(0);
+  }
+
+  .cyber-card {
+    border-radius: 8px;
+  }
+
+  .cyber-btn {
+    font-size: 0.8rem;
+  }
+
+  .tab-bar {
+    flex-wrap: wrap;
+  }
+
+  .tab-bar button {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 0;
+    font-size: 0.7rem;
+    padding: 0.5rem 0.25rem;
+  }
 }

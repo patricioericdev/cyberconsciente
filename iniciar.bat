@@ -13,6 +13,9 @@ timeout /t 3 /nobreak > nul
 echo [2/2] Iniciando Frontend (React)...
 start "CyberConsciente Frontend" cmd /k "cd /d %~dp0frontend && npm run dev"
 
+timeout /t 4 /nobreak > nul
+start http://localhost:5173
+
 echo.
 echo  ==========================================
 echo   Sistema iniciado!

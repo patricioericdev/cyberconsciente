@@ -1,12 +1,37 @@
-import { useState, useRef, DragEvent } from 'react'
+import { useState, useRef } from 'react'
+import type { DragEvent } from 'react'
 import ResultCard from './ResultCard'
+import type { ResultData } from '../App'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-export default function ImageDetector() {
+interface ImageDetectorProps {
+  onAnalyzed: (result: ResultData, preview: string) => void
+}
+
+async function compressImage(file: File, maxPx = 1024): Promise<Blob> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const { width, height } = img
+      const scale = Math.min(1, maxPx / Math.max(width, height))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(width * scale)
+      canvas.height = Math.round(height * scale)
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      canvas.toBlob(blob => resolve(blob ?? file), 'image/jpeg', 0.88)
+    }
+    img.src = url
+  })
+}
+
+export default function ImageDetector({ onAnalyzed }: ImageDetectorProps) {
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
-  const [result, setResult] = useState<any>(null)
+  const [result, setResult] = useState<ResultData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [dragOver, setDragOver] = useState(false)
@@ -39,8 +64,9 @@ export default function ImageDetector() {
     setLoading(true)
 
     try {
+      const compressed = await compressImage(file)
       const formData = new FormData()
-      formData.append('file', file)
+      formData.append('file', compressed, file.name)
 
       const res = await fetch(`${API_URL}/detect/image`, {
         method: 'POST',
@@ -48,12 +74,14 @@ export default function ImageDetector() {
       })
       if (!res.ok) {
         const err = await res.json()
-        throw new Error(err.detail || 'Erro na análise')
+        throw new Error((err as { detail?: string }).detail || 'Erro na análise')
       }
-      const data = await res.json()
+      const data = await res.json() as ResultData
       setResult(data)
-    } catch (e: any) {
-      setError(e.message || 'Não foi possível conectar ao servidor.')
+      onAnalyzed(data, file.name)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Não foi possível conectar ao servidor.'
+      setError(msg)
     } finally {
       setLoading(false)
     }
@@ -75,22 +103,39 @@ export default function ImageDetector() {
         onDragLeave={() => setDragOver(false)}
       >
         {preview ? (
-          <div className="flex flex-col items-center gap-3">
+          <div className="flex flex-col items-center gap-3 relative">
             <img
               src={preview}
               alt="Preview"
               className="max-h-56 max-w-full rounded-lg border border-purple-800/50 object-contain"
             />
+            {result && (
+              <div
+                className={`absolute inset-0 flex items-center justify-center rounded-lg bg-black/60 backdrop-blur-sm`}
+                onClick={e => e.stopPropagation()}
+              >
+                <span
+                  className={`text-2xl font-black font-mono px-4 py-2 rounded-full border ${
+                    result.verdict === 'IA'
+                      ? 'bg-red-950/80 border-red-500 text-red-300'
+                      : 'bg-emerald-950/80 border-emerald-500 text-emerald-300'
+                  }`}
+                  style={{ fontFamily: "'Orbitron', monospace" }}
+                >
+                  {result.verdict === 'IA' ? '🤖 IA' : '✅ HUMANO'}
+                </span>
+              </div>
+            )}
             <p className="text-xs text-slate-500 font-mono">{file?.name}</p>
             <p className="text-xs text-purple-400 font-mono">Clique para trocar a imagem</p>
           </div>
         ) : (
           <div className="text-slate-500">
-            <div className="text-5xl mb-3">🔍</div>
+            <div className="text-5xl mb-3">🖼️</div>
             <p className="font-mono text-sm text-slate-400 mb-1">
               Arraste uma imagem aqui ou clique para selecionar
             </p>
-            <p className="text-xs text-slate-600">PNG, JPG, WEBP · Máx. 10MB</p>
+            <p className="text-xs text-slate-600">PNG, JPG, WEBP · Máx. 10MB · comprimido para 1024px</p>
           </div>
         )}
       </div>
@@ -120,7 +165,7 @@ export default function ImageDetector() {
             Analisando imagem...
           </span>
         ) : (
-          '🔬 ANALISAR IMAGEM'
+          '🖼️ ANALISAR IMAGEM'
         )}
       </button>
 
