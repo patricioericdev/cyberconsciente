@@ -47,141 +47,117 @@ def _detect_language(text: str) -> str:
 # ─── TEXT ANALYSIS ─────────────────────────────────────────────────────────────
 
 def _analyze_text(text: str, language: str = "other"):
-    """Multi-heuristic AI text detection with language-aware rules.
+    """Multi-factor linguistic & rhetorical AI text detection.
+    Evaluates LLM tropes, syntactic symmetry, burstiness, and lexical entropy.
     Returns (score 0-100, signals).
     """
     signals = []
-    score = 0.0
+    lower = text.lower()
     words = text.split()
     sentences = [s.strip() for s in re.split(r'[.!?]+', text) if s.strip()]
-    lower = text.lower()
+    
+    # Base prior for neutral text
+    score = 25.0
 
-    # ── 1. Formal connectives (AI loves these) — split by language
-    pt_connectives = [
-        "além disso", "portanto", "no entanto", "ademais", "outrossim",
-        "dessa forma", "por conseguinte", "em suma", "em conclusão",
-        "nesse sentido", "sob essa perspectiva", "cabe ressaltar",
-    ]
-    en_connectives = [
-        "furthermore", "moreover", "however", "therefore", "additionally",
-        "in conclusion", "as a result", "it is worth noting", "notably",
-        "in summary", "it should be noted", "in addition",
-    ]
+    # ── 1. Myth vs. Reality / Debunking Trope (classic ChatGPT intro)
+    myth_pt = r'(muita gente|muitas pessoas|muitos|comumente|acredita-se que|é comum pensar)\s+.+?(mas\s+(a ciência|estudos|pesquisas|na verdade|o que poucos sabem)|,?\s*no entanto)'
+    myth_en = r'(many people|it is commonly believed|one might think|popular belief)\s+.+?(however|but in reality|studies show|science suggests)'
+    myth_pat = myth_pt if language == "pt" else (myth_en if language == "en" else f"({myth_pt}|{myth_en})")
+    if re.search(myth_pat, lower):
+        score += 26
+        signals.append({"label": "Padrão retórico de desmistificação ('muitos acreditam... mas a ciência mostra')", "type": "ai"})
 
-    if language == "pt":
-        connective_pool = pt_connectives
-    elif language == "en":
-        connective_pool = en_connectives
-    else:
-        connective_pool = pt_connectives + en_connectives
+    # ── 2. Binary Antithesis ('não apenas X, mas também Y' ou 'não é X, e sim Y')
+    anti_pt = r'não\s+(é|apenas|só|somente|se trata de).+?,?\s+(e sim|mas também|mas sim|mas de)'
+    anti_en = r'not\s+(only|just|merely|simply).+?,?\s+(but also|but rather|and rather)'
+    anti_pat = anti_pt if language == "pt" else (anti_en if language == "en" else f"({anti_pt}|{anti_en})")
+    if re.search(anti_pat, lower):
+        score += 24
+        signals.append({"label": "Contraste binário característico de LLMs ('não é X, e sim Y')", "type": "ai"})
 
-    found_conn = [c for c in connective_pool if c.lower() in lower]
-    conn_ratio = len(found_conn) / max(len(sentences), 1)
-    if conn_ratio > 0.4:
+    # ── 3. Didactic Actionable List with Colon (AI loves giving bullet points in prose)
+    list_pt = r'(algumas|alguns|as principais|dicas|atitudes|estratégias|orientações|recomendações|passos)\s+.+?:\s*.+?(\b\w+ar\b|\b\w+er\b|\b\w+ir\b)'
+    list_en = r'(some tips|key strategies|actions|steps|recommendations)\s+.+?:\s*.+?(\b\w+ing\b|\bto \w+\b)'
+    list_pat = list_pt if language == "pt" else (list_en if language == "en" else f"({list_pt}|{list_en})")
+    if re.search(list_pat, lower):
+        score += 22
+        signals.append({"label": "Estrutura didática de recomendações em lista após dois-pontos", "type": "ai"})
+
+    # ── 4. Cliché Superlative Hook
+    hook_pt = r'\b(é um dos|é uma das|figura entre os|são fundamentais para quem)\s+(principais|mais|maiores|hábitos|fatores|pilares|desafios)\b'
+    hook_en = r'\b(is one of the most|plays a crucial role in|serves as a cornerstone|is an essential)\b'
+    hook_pat = hook_pt if language == "pt" else (hook_en if language == "en" else f"({hook_pt}|{hook_en})")
+    if re.search(hook_pat, lower):
+        score += 18
+        signals.append({"label": "Abertura em fórmula de gancho didático ('é um dos hábitos mais...')", "type": "ai"})
+
+    # ── 5. Textbook Conceptual Definition
+    def_pt = r'\b(esse processo se chama|trata-se de|isso ocorre porque|isso acontece quando|em outras palavras|denomina-se)\b'
+    def_en = r'\b(this process is known as|this occurs because|in other words|refers to the)\b'
+    def_pat = def_pt if language == "pt" else (def_en if language == "en" else f"({def_pt}|{def_en})")
+    if re.search(def_pat, lower):
+        score += 16
+        signals.append({"label": "Definição conceitual em formato de livro didático ('esse processo se chama')", "type": "ai"})
+
+    # ── 6. Standardized Summary / Conclusion
+    concl_pt = r'\b(em resumo|em conclusão|em suma|por fim|em síntese|conclui-se que)\b'
+    concl_en = r'\b(in summary|in conclusion|to sum up|ultimately|in essence|in short)\b'
+    concl_pat = concl_pt if language == "pt" else (concl_en if language == "en" else f"({concl_pt}|{concl_en})")
+    if re.search(concl_pat, lower):
         score += 20
-        signals.append({"label": f"Muitos conectivos formais ({len(found_conn)} encontrados)", "type": "ai"})
-    elif found_conn:
-        score += 8
-        signals.append({"label": "Alguns conectivos formais", "type": "ai"})
-    else:
-        signals.append({"label": "Linguagem direta, poucos conectivos", "type": "human"})
+        signals.append({"label": "Fechamento conclusivo padronizado ('Em resumo...')", "type": "ai"})
 
-    # ── 2. Sentence length uniformity (AI tends to be uniform)
+    # ── 7. Transition Connective Density
+    trans_pt = r'\b(por isso|portanto|além disso|dessa forma|no entanto|nesse sentido|por conseguinte|sob essa perspectiva)\b'
+    trans_en = r'\b(therefore|furthermore|moreover|however|as a result|consequently|additionally)\b'
+    trans_pat = trans_pt if language == "pt" else (trans_en if language == "en" else f"({trans_pt}|{trans_en})")
+    trans_count = len(re.findall(trans_pat, lower))
+    if trans_count >= 2:
+        score += 15
+        signals.append({"label": f"Alta densidade de transições conectivas ({trans_count} detectadas)", "type": "ai"})
+
+    # ── 8. Sentence Length Uniformity / Low Burstiness
     if len(sentences) >= 3:
-        lengths = [len(s.split()) for s in sentences]
-        mean_len = sum(lengths) / len(lengths)
-        variance = sum((l - mean_len) ** 2 for l in lengths) / len(lengths)
-        std_dev = math.sqrt(variance)
-        uniformity = std_dev / max(mean_len, 1)
+        lens = [len(s.split()) for s in sentences]
+        mean_l = sum(lens) / len(lens)
+        sd = math.sqrt(sum((l - mean_l)**2 for l in lens) / len(lens))
+        cv = sd / max(mean_l, 1)
+        if cv < 0.45:
+            score += 16
+            signals.append({"label": "Cadência sintática uniforme e contínua (baixa variação de ritmo)", "type": "ai"})
+        elif cv > 0.70:
+            score -= 15
+            signals.append({"label": "Variação orgânica no tamanho e ritmo das frases", "type": "human"})
 
-        if uniformity < 0.25:
-            score += 18
-            signals.append({"label": "Frases muito uniformes em tamanho", "type": "ai"})
-        elif uniformity > 0.5:
-            signals.append({"label": "Variação natural no tamanho das frases", "type": "human"})
-        else:
-            score += 8
-
-    # ── 3. Lexical diversity (TTR - Type-Token Ratio)
-    lower_words = [w.lower().strip(".,!?;:\"'()") for w in words]
-    ttr = len(set(lower_words)) / max(len(lower_words), 1)
-    if ttr < 0.45:
-        score += 15
-        signals.append({"label": "Baixa diversidade lexical (repetições)", "type": "ai"})
-    elif ttr > 0.75:
-        signals.append({"label": "Vocabulário rico e diversificado", "type": "human"})
-    else:
-        score += 5
-
-    # ── 4. Perfect structure: intro + dev + conclusion pattern
-    pt_intro = ["introdução", "neste texto", "neste artigo", "neste ensaio"]
-    pt_concl = ["conclusão", "em conclusão", "portanto, conclui-se", "em síntese"]
-    en_intro = ["introduction", "this essay", "this article", "in this text"]
-    en_concl = ["conclusion", "in summary", "to summarize", "to conclude"]
-
-    if language == "pt":
-        intro_markers, concl_markers = pt_intro, pt_concl
-    elif language == "en":
-        intro_markers, concl_markers = en_intro, en_concl
-    else:
-        intro_markers = pt_intro + en_intro
-        concl_markers = pt_concl + en_concl
-
-    has_intro = any(m in lower for m in intro_markers)
-    has_concl = any(m in lower for m in concl_markers)
-    if has_intro and has_concl:
-        score += 15
-        signals.append({"label": "Estrutura intro-desenvolvimento-conclusão", "type": "ai"})
-    elif has_intro or has_concl:
-        score += 7
-
-    # ── 5. Impersonal / passive voice patterns (language-aware)
-    pt_impersonal = [
-        "é importante", "é necessário", "é fundamental", "é essencial",
-        "deve-se", "pode-se", "sabe-se que",
-    ]
-    en_impersonal = [
-        "it is important", "it is necessary", "it should be noted",
-        "one must", "it can be argued", "it is clear that",
-    ]
-
-    if language == "pt":
-        impersonal_pool = pt_impersonal
-    elif language == "en":
-        impersonal_pool = en_impersonal
-    else:
-        impersonal_pool = pt_impersonal + en_impersonal
-
-    found_imp = sum(1 for p in impersonal_pool if p in lower)
-    if found_imp >= 2:
-        score += 12
-        signals.append({"label": "Linguagem impessoal e genérica", "type": "ai"})
-    elif found_imp == 1:
-        score += 5
-    else:
-        signals.append({"label": "Estilo pessoal e direto", "type": "human"})
-
-    # ── 6. Emotional / informal markers (human signals)
-    informal_pt = ["haha", "kkkk", "rsrs", "né", "cara", "gente", "mds", "nossa"]
-    informal_en = ["lol", "omg", "btw", "imo", "tbh", "ngl", "wtf", "haha"]
-    informal = ["!"] + informal_pt + informal_en
-    found_inf = sum(1 for m in informal if m in lower)
-    if found_inf >= 2:
-        score -= 15
-        signals.append({"label": "Expressões informais / emocionais", "type": "human"})
-    elif found_inf == 1:
-        score -= 7
-
-    # ── 7. Repetitive sentence starters
-    starters = [s.split()[0].lower() if s.split() else "" for s in sentences]
-    if len(starters) >= 4:
-        top_starter, top_count = Counter(starters).most_common(1)[0]
-        if top_count / len(starters) > 0.4:
+    # ── 9. Lexical Diversity (TTR)
+    clean_words = [w.strip(".,!?;:\"'()").lower() for w in words if len(w) > 2]
+    if clean_words:
+        ttr = len(set(clean_words)) / len(clean_words)
+        if ttr < 0.45:
             score += 10
-            signals.append({"label": f"Início de frases repetido ('{top_starter}')", "type": "ai"})
+            signals.append({"label": "Baixa variedade vocabular (repetições contínuas)", "type": "ai"})
+        elif ttr > 0.80 and score < 50:
+            score -= 8
+            signals.append({"label": "Vocabulário rico e diversificado", "type": "human"})
 
-    # ── Clamp to 5–95
-    score = max(5, min(95, score))
+    # ── 10. Human Informal & First-Person Markers
+    human_pt = r'\b(eu\b|meu\b|minha\b|a gente\b|cara\b|mano\b|né\b|kkk+|haha+|pra mim|tava\b|tô\b|achei\b|gostei\b|fui\b|comprei\b|vi\b)'
+    human_en = r'\b(i\b|my\b|me\b|we\b|our\b|lol|haha|tbh|imo|honestly|kinda|gonna|wanna|dude|bro)'
+    human_pat = human_pt if language == "pt" else (human_en if language == "en" else f"({human_pt}|{human_en})")
+    human_matches = len(re.findall(human_pat, lower))
+    if human_matches >= 2:
+        score -= 25
+        signals.append({"label": "Uso evidente de primeira pessoa e marcadores coloquiais", "type": "human"})
+    elif human_matches == 1 and score < 60:
+        score -= 12
+        signals.append({"label": "Presença de tom pessoal e conversacional", "type": "human"})
+
+    # If no AI tropes matched at all and score is still low, confirm natural human writing
+    if score <= 30 and not any(s['type'] == 'ai' for s in signals):
+        signals.append({"label": "Ausência de padrões e fórmulas sintéticas de LLM", "type": "human"})
+
+    # Clamp score to realistic bounds
+    score = max(4.0, min(98.5, score))
     return score, signals
 
 
